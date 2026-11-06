@@ -1,7 +1,9 @@
 import io
 import os
 import pandas as pd
+from st_copy_button import st_copy_button
 import streamlit as st
+from streamlit_option_menu import option_menu
 
 # --- PAGE CONFIGURATION ---
 st.set_page_config(
@@ -10,26 +12,48 @@ st.set_page_config(
     layout="wide",
 )
 
-# --- CUSTOM CSS STYLING (Dark Theme Matching) ---
+# --- CUSTOM CSS STYLING ---
 st.markdown(
     """
     <style>
+    /* Main App Background & Text */
     .stApp {
         background-color: #181825;
         color: #CDD6F4;
     }
-    sidebar .stSidebar {
+    
+    /* Sidebar Background Color */
+    section[data-testid="stSidebar"] {
         background-color: #1E1E2E;
+        border-right: 1px solid #313244;
     }
-    .metric-card {
-        background-color: #313244;
-        padding: 15px;
-        border-radius: 8px;
-        text-align: center;
-        font-weight: bold;
-        font-size: 18px;
-        color: #89B4FA;
+    
+    /* Hide default Streamlit navigation */
+    [data-testid="stSidebarNav"] {
+        display: none;
     }
+
+    /* Force background and border on text input and selectbox wrappers */
+    .stTextInput > div > div, 
+    .stSelectbox > div > div {
+        background-color: #313244 !important;
+        border-color: #313244 !important;
+        color: #CDD6F4 !important;
+    }
+
+    /* Target inner input fields */
+    .stTextInput input {
+        background-color: #313244 !important;
+        color: #CDD6F4 !important;
+    }
+
+    /* Fix focus outline glow */
+    .stTextInput > div > div:focus-within, 
+    .stSelectbox > div > div:focus-within {
+        border-color: #89B4FA !important;
+        box-shadow: none !important;
+    }
+
     </style>
 """,
     unsafe_allow_html=True,
@@ -38,7 +62,6 @@ st.markdown(
 
 # --- HELPER FUNCTIONS ---
 def clean_numeric_input(val_str):
-  """Sanitizes strings containing $, commas, spaces, or % symbols."""
   if not val_str:
     return 0.0
   cleaned = (
@@ -48,23 +71,6 @@ def clean_numeric_input(val_str):
     return float(cleaned)
   except ValueError:
     return 0.0
-
-
-def get_fsi_color(fsi_val):
-  if fsi_val <= 75:
-    return "#14532d", "#86efac"
-  elif fsi_val <= 99:
-    return "#166534", "#bbf7d0"
-  elif fsi_val <= 105:
-    return "#713f12", "#fef08a"
-  elif fsi_val <= 115:
-    return "#854d0e", "#fde047"
-  elif fsi_val <= 130:
-    return "#7c2d12", "#fdba74"
-  elif fsi_val <= 150:
-    return "#7f1d1d", "#fca5a5"
-  else:
-    return "#ef4444", "#ffffff"
 
 
 def determine_mechanic(promo_aup, base_aup):
@@ -145,18 +151,55 @@ def find_header_row_and_df(xls, sheet_name):
 
 
 # --- SIDEBAR NAVIGATION ---
-st.sidebar.title("Analytics Calculator")
-module = st.sidebar.radio(
-    "Select Module",
-    [
-        "Home",
-        "Forecasting Increased Distribution",
-        "Forecasting New Item Distribution",
-        "Fair Share Index",
-        "Opportunity Gap",
-        "Promotional Analysis",
-    ],
-)
+with st.sidebar:
+  st.markdown(
+      "<h2 style='color: #CDD6F4; padding-top: 10px; padding-bottom:"
+      " 5px;'>Analytics Calculator</h2>",
+      unsafe_allow_html=True,
+  )
+  st.markdown(
+      "<hr style='margin-top: 0px; margin-bottom: 15px; border-color:"
+      " #313244;'>",
+      unsafe_allow_html=True,
+  )
+
+  module = option_menu(
+      menu_title=None,
+      options=[
+          "Home",
+          "Forecasting Increased Distribution",
+          "Forecasting New Item Distribution",
+          "Fair Share Index",
+          "Opportunity Gap",
+          "Promotional Analysis",
+      ],
+      icons=[
+          "house",
+          "graph-up-arrow",
+          "plus-square",
+          "pie-chart",
+          "bar-chart",
+          "file-earmark-spreadsheet",
+      ],
+      default_index=0,
+      styles={
+          "container": {"padding": "0!important", "background-color": "#1E1E2E"},
+          "icon": {"color": "#89B4FA", "font-size": "14px"},
+          "nav-link": {
+              "font-size": "13px",
+              "font-weight": "bold",
+              "text-align": "left",
+              "margin": "3px 0",
+              "color": "#A6ADC8",
+              "background-color": "#1E1E2E",
+          },
+          "nav-link-selected": {
+              "background-color": "#45475A",
+              "color": "#89B4FA",
+              "font-weight": "bold",
+          },
+      },
+  )
 
 weeks_map = {"L13": 13, "L26": 26, "L52": 52}
 
@@ -165,14 +208,14 @@ weeks_map = {"L13": 13, "L26": 26, "L52": 52}
 # ==========================================
 if module == "Home":
   st.markdown(
-      "<h1 style='text-align: center; margin-top: 100px;'>Analytics"
-      " Calculator</h1>",
+      "<h1 style='text-align: center; margin-top: 120px; color:"
+      " #CDD6F4;'>Analytics Calculator</h1>",
       unsafe_allow_html=True,
   )
   st.markdown(
-      "<p style='text-align: center; color: #A6ADC8;'>Select a module from the"
-      " left sidebar navigation, enter your parameters, and perform analytics"
-      " calculations!</p>",
+      "<p style='text-align: center; color: #A6ADC8; font-size: 16px;'>Select a"
+      " module from the left sidebar navigation,<br>enter your parameters, and"
+      " perform analytics calculations!</p>",
       unsafe_allow_html=True,
   )
 
@@ -182,32 +225,23 @@ if module == "Home":
 elif module == "Forecasting Increased Distribution":
   st.header("Forecasting Increased Distribution")
 
-  col1, col2 = st.columns(2)
-  with col1:
-    actual_period = st.selectbox(
-        "Choose Actual Time Period", ["L13", "L26", "L52"], key="inc_act"
-    )
-  with col2:
-    forecast_period = st.selectbox(
-        "Choose Forecast Time Period", ["L13", "L26", "L52"], key="inc_fc"
-    )
-
-  sales_val = st.text_input(
-      "Enter Actual $ Sales", placeholder="e.g. 50000", key="inc_sales"
+  actual_period = st.selectbox(
+      "Choose Actual Time Period", ["L13", "L26", "L52"], key="inc_act"
   )
+  sales_val = st.text_input("Enter Actual $ Sales", key="inc_sales")
 
   driver_type = st.radio(
       "Choose Distribution Metric", ["%ACV Reach", "TDP"], key="inc_driver"
   )
 
   if driver_type == "%ACV Reach":
-    metric_val = st.text_input(
-        "Enter %ACV Reach Value", placeholder="e.g. 75.5", key="inc_acv"
-    )
+    metric_val = st.text_input("Enter %ACV Reach Value", key="inc_acv")
   else:
-    metric_val = st.text_input(
-        "Enter TDP Value", placeholder="e.g. 120", key="inc_tdp"
-    )
+    metric_val = st.text_input("Enter TDP Value", key="inc_tdp")
+
+  forecast_period = st.selectbox(
+      "Choose Forecast Time Period", ["L13", "L26", "L52"], key="inc_fc"
+  )
 
   if st.button("Calculate", type="primary"):
     try:
@@ -242,19 +276,10 @@ elif module == "Forecasting Increased Distribution":
 elif module == "Forecasting New Item Distribution":
   st.header("Forecasting New Item Distribution")
 
-  col1, col2 = st.columns(2)
-  with col1:
-    actual_period = st.selectbox(
-        "Choose Actual Time Period", ["L13", "L26", "L52"], key="new_act"
-    )
-  with col2:
-    forecast_period = st.selectbox(
-        "Choose Forecast Time Period", ["L13", "L26", "L52"], key="new_fc"
-    )
-
-  sales_val = st.text_input(
-      "Enter Actual $ Sales", placeholder="e.g. 25000", key="new_sales"
+  actual_period = st.selectbox(
+      "Choose Actual Time Period", ["L13", "L26", "L52"], key="new_act"
   )
+  sales_val = st.text_input("Enter Actual $ Sales", key="new_sales")
 
   col3, col4 = st.columns(2)
   with col3:
@@ -262,7 +287,19 @@ elif module == "Forecasting New Item Distribution":
     ta_acv = st.text_input("TA Est MKT ACV", key="new_ta")
   with col4:
     tdp_val = st.text_input("TDP", key="new_tdp")
-    share_val = st.text_input("Retailer's Share of Market %", key="new_share")
+    share_val = st.text_input(
+        "Retailer's Share of Market %", key="new_share"
+    )
+    st_copy_button(
+        text=r"N:\SellEthics Answers\Other Reports\Market Share\Market Share.xlsx",
+        before_copy_label="📋 Copy N Drive Path",
+        after_copy_label="✅ Copied Path!",
+        type="tertiary"
+    )
+
+  forecast_period = st.selectbox(
+      "Choose Forecast Time Period", ["L13", "L26", "L52"], key="new_fc"
+  )
 
   if st.button("Calculate", type="primary"):
     try:
@@ -326,12 +363,8 @@ elif module == "Fair Share Index":
 elif module == "Opportunity Gap":
   st.header("Opportunity Gap")
 
-  ret_acv = st.text_input(
-      "Retailer Est Market ACV ($MM)", key="og_racv"
-  )
-  comp_acv = st.text_input(
-      "Comp Market Est Market ACV ($MM)", key="og_cacv"
-  )
+  ret_acv = st.text_input("Retailer Est Market ACV ($MM)", key="og_racv")
+  comp_acv = st.text_input("Comp Market Est Market ACV ($MM)", key="og_cacv")
   ret_sales = st.text_input("Retailer $ Sales", key="og_rsales")
   comp_sales = st.text_input("Comp Market $ Sales", key="og_csales")
 
@@ -589,9 +622,7 @@ elif module == "Promotional Analysis":
         st.write(f"• Sheet Analyzed: {sheet_name}")
         st.write(f"• Promo Threshold Used: {int(promo_threshold * 100)}%")
         st.write(f"• Total Weeks Analyzed: {total_weeks}")
-        st.write(
-            f"• Weeks on Promotion: {promo_weeks_count}"
-        )
+        st.write(f"• Weeks on Promotion: {promo_weeks_count}")
         st.write(f"• Distinct Promo Groups Identified: {len(groups)}")
 
         st.subheader("=== PROMO GROUPS BREAKDOWN ===")
@@ -610,7 +641,6 @@ elif module == "Promotional Analysis":
             f"• Avg Incr Units / Promo Wk: {avg_incr_per_promo_wk:,.0f}"
         )
 
-        # Download button for CSV export
         csv_data = export_df.to_csv(index=False).encode("utf-8-sig")
         st.download_button(
             label="Download Analysis as CSV",
